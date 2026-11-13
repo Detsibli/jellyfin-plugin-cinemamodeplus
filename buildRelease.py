@@ -1,162 +1,165 @@
-from __future__ import annotations
-import subprocess
-import zipfile
-import json
-import yaml
-import datetime
-import sys
-from dataclasses import dataclass
+"""
+Build and package a Cinema Mode Plus release.
 
+build.yaml is the single source of truth for the version, changelog and plugin metadata.
+
+    python buildRelease.py --print-version   # print the version from build.yaml
+    python buildRelease.py                   # build, zip and add the version to manifest.json
+
+The zip and release notes are written to artifacts/. Used by .github/workflows/release.yml, but works locally too
+(requires the .NET SDK and `pip install pyyaml`).
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import zipfile
+
+import yaml
 
 REPO_URL = "https://github.com/Detsibli/jellyfin-plugin-cinemamodeplus"
+ORIGINAL_REPO_URL = "https://github.com/CherryFloors/jellyfin-plugin-cinemamode"
 PROJECT = "Jellyfin.Plugin.CinemaModePlus"
-RELEASE_DIR = f"{PROJECT}/bin/release/net9.0/"
-RELEASE_DLL = f"{PROJECT}/bin/release/net9.0/{PROJECT}.dll"
-RELEASE_META = f"{PROJECT}/bin/release/net9.0/meta.json"
+PUBLISH_DIR = "bin"
+ARTIFACTS_DIR = "artifacts"
+MANIFEST = "manifest.json"
+IMAGE_URL = f"{REPO_URL}/raw/main/{PROJECT}/Images/jellyfin-plugin-cinemamodeplus.png"
 
 
-@dataclass
-class Meta:
-    """ Meta """
-
-    category: str
-    changelog: str
-    description: str
-    guid: str
-    imageUrl: str
-    name: str
-    overview: str
-    owner: str
-    targetAbi: str
-    timestamp: str
-    version: str
-    zip_file_name: str
-
-    @classmethod
-    def get_meta(cls) -> Meta:
-
-        # Load build.yml
-        with open("build.yaml", "r") as yml:
-            build_yaml = yaml.safe_load(yml)
-
-        changelog = "".join(f"- {i}\n" for i in build_yaml["changelog"])
-
-        return cls(
-            category=build_yaml["category"],
-            changelog=changelog,
-            description=build_yaml["description"],
-            guid=build_yaml["guid"],
-            imageUrl=f"{REPO_URL}/raw/main/{PROJECT}/Images/jellyfin-plugin-cinemamodeplus.png",
-            name=build_yaml["name"],
-            overview=build_yaml["overview"],
-            owner=build_yaml["owner"],
-            targetAbi=build_yaml["targetAbi"],
-            timestamp=datetime.datetime.now().isoformat(),
-            version=build_yaml["version"],
-            zip_file_name=f'cinemamodeplus_{build_yaml["version"]}.zip',
-        )
-
-    def save_file(self) -> None:
-        out_dict = {
-            "category": self.category,
-            "changelog": self.changelog,
-            "description": self.description,
-            "guid": self.guid,
-            "imageUrl": self.imageUrl,
-            "name": self.name,
-            "overview": self.overview,
-            "owner": self.owner,
-            "targetAbi": self.targetAbi,
-            "timestamp": self.timestamp,
-            "version": self.version,
-        }
-        with open(RELEASE_META, "w") as f:
-            f.write(json.dumps(out_dict, indent=4))
+def load_build_yaml() -> dict:
+    with open("build.yaml", "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
 
-@dataclass
-class ManifestEntry:
-    """ ManifestEntry """
+def changelog_text(build: dict) -> str:
+    return "".join(f"- {line}\n" for line in build.get("changelog", []))
 
-    checksum: str
-    changelog: str
-    targetAbi: str
-    sourceUrl: str
-    timestamp: str
-    version: str
 
-    @classmethod
-    def get_manifest_entry(cls, meta: Meta) -> ManifestEntry:
+def plugin_info(build: dict) -> dict:
+    """Top-level manifest fields describing the plugin."""
+    return {
+        "category": build["category"],
+        "guid": build["guid"],
+        "name": build["name"],
+        "description": build["description"].strip(),
+        "owner": build["owner"],
+        "overview": build["overview"],
+        "imageUrl": IMAGE_URL,
+    }
 
-        checksum_args = ["md5sum", f"{RELEASE_DIR}/{meta.zip_file_name}"]
-        proc_output = subprocess.run(checksum_args, capture_output=True, text=True)
-        _checksum = proc_output.stdout.split(" ")[0]
 
-        return cls(
-            checksum=_checksum,
-            changelog=meta.changelog,
-            targetAbi=meta.targetAbi,
-            sourceUrl=f"{REPO_URL}/releases/download/v{meta.version}/{meta.zip_file_name}",
-            timestamp=meta.timestamp,
-            version=meta.version,
-        )
+def build_project(version: str) -> None:
+    args = [
+        "dotnet", "publish", f"./{PROJECT}/{PROJECT}.csproj",
+        "--configuration", "Release",
+        "--output", PUBLISH_DIR,
+        f"-p:Version={version}",
+        f"-p:AssemblyVersion={version}",
+        f"-p:FileVersion={version}",
+    ]
+    subprocess.run(args, check=True)
 
-    def to_output_dict(self) -> dict:
-        return {
-            "checksum": self.checksum,
-            "changelog": self.changelog,
-            "targetAbi": self.targetAbi,
-            "sourceUrl": self.sourceUrl,
-            "timestamp": self.timestamp,
-            "version": self.version,
-        }
 
-    def add_manifest_entry(self) -> None:
-        with open("manifest.json", "r") as f:
+def package(build: dict, timestamp: str) -> str:
+    version = build["version"]
+    meta = plugin_info(build)
+    meta.update({
+        "changelog": changelog_text(build),
+        "targetAbi": build["targetAbi"],
+        "timestamp": timestamp,
+        "version": version,
+    })
+
+    os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+    zip_path = os.path.join(ARTIFACTS_DIR, zip_name(version))
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+        for artifact in build["artifacts"]:
+            z.write(os.path.join(PUBLISH_DIR, artifact), artifact)
+        z.writestr("meta.json", json.dumps(meta, indent=4))
+    return zip_path
+
+
+def zip_name(version: str) -> str:
+    return f"cinemamodeplus_{version}.zip"
+
+
+def md5(path: str) -> str:
+    with open(path, "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()
+
+
+def update_manifest(build: dict, zip_path: str, timestamp: str) -> None:
+    """Add this version to manifest.json (newest first) in the format Jellyfin's plugin repositories expect."""
+    version = build["version"]
+    if os.path.exists(MANIFEST):
+        with open(MANIFEST, "r", encoding="utf-8") as f:
             manifest = json.load(f)
+    else:
+        manifest = []
 
-        versions = [i["version"] for i in manifest[0]["versions"]]
-        if self.version in versions:
-            print("Current version is already in the manifest")
-            sys.exit()
+    entry = next((p for p in manifest if p.get("guid") == build["guid"]), None)
+    if entry is None:
+        entry = {"versions": []}
+        manifest.insert(0, entry)
 
-        updated_versions = [self.to_output_dict()] + manifest[0]["versions"]
-        manifest[0]["versions"] = updated_versions
+    versions = [v for v in entry.get("versions", []) if v.get("version") != version]
+    entry.clear()
+    entry.update(plugin_info(build))
+    entry["versions"] = [{
+        "version": version,
+        "changelog": changelog_text(build),
+        "targetAbi": build["targetAbi"],
+        "sourceUrl": f"{REPO_URL}/releases/download/v{version}/{zip_name(version)}",
+        "checksum": md5(zip_path),
+        "timestamp": timestamp,
+    }] + versions
 
-        with open("manifest.json", "w") as f:
-            f.write(json.dumps(manifest, indent=4))
+    with open(MANIFEST, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(manifest, indent=4) + "\n")
 
 
-def build() -> None:
-    build_args = ["dotnet", "publish", f"./{PROJECT}/{PROJECT}.csproj", "--configuration", "release", "--output", "bin"]
-    proc_output = subprocess.run(build_args, capture_output=True, text=True)
-    print(proc_output.stdout)
-    print(proc_output.stderr)
+def write_release_notes(build: dict) -> str:
+    path = os.path.join(ARTIFACTS_DIR, "release-notes.md")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(f"## {build['name']} {build['version']}\n\n")
+        f.write(f"Targets Jellyfin {build['targetAbi']}.\n\n")
+        f.write("### Changes\n\n")
+        f.write(changelog_text(build))
+        f.write("\n### Install\n\n")
+        f.write("In Jellyfin go to **Dashboard > Plugins > Repositories**, add this repository URL, then install "
+                f"**{build['name']}** from the catalog:\n\n")
+        f.write(f"```\nhttps://raw.githubusercontent.com/Detsibli/jellyfin-plugin-cinemamodeplus/main/{MANIFEST}\n```\n\n")
+        f.write(f"Cinema Mode Plus is based on [Cinema Mode]({ORIGINAL_REPO_URL}) by CherryFloors, "
+                "released under the MIT License.\n")
+    return path
 
 
-def package(meta: Meta) -> None:
-    # Get meta data
-    with zipfile.ZipFile(f"{RELEASE_DIR}/{meta.zip_file_name}", "w") as zip:
-        zip.write(RELEASE_DLL, f"{PROJECT}.dll")
-        zip.write(RELEASE_META, "meta.json")
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--print-version", action="store_true", help="print the version from build.yaml and exit")
+    args = parser.parse_args()
+
+    build = load_build_yaml()
+    if args.print_version:
+        print(build["version"])
+        return 0
+
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    print(f"Building {build['name']} {build['version']}...", flush=True)
+    build_project(build["version"])
+    zip_path = package(build, timestamp)
+    update_manifest(build, zip_path, timestamp)
+    notes = write_release_notes(build)
+    print(f"Package: {zip_path} (md5 {md5(zip_path)})")
+    print(f"Release notes: {notes}")
+    return 0
 
 
 if __name__ == "__main__":
-
-    # Build project and export meta
-    print("Building project...")
-    build()
-    print("Exporting metadata...")
-    project_meta_data = Meta.get_meta()
-    project_meta_data.save_file()
-
-    # Create the package
-    print("Creating the package...")
-    package(meta=project_meta_data)
-
-    # Update the manifest
-    print("Updating manifest...")
-    manifest_entry = ManifestEntry.get_manifest_entry(meta=project_meta_data)
-    manifest_entry.add_manifest_entry()
-    print("Done.")
-
+    sys.exit(main())

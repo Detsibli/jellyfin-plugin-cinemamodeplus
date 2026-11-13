@@ -223,3 +223,19 @@ dotnet publish --configuration Release --output bin
 
 4. Place the resulting file in the `plugins` folder
 
+## Releasing
+
+Releases are automated with GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)).
+`build.yaml` is the single source of truth for the version, changelog and plugin metadata.
+
+1. Bump `version` in `build.yaml` (e.g. `0.7.0.0` -> `0.8.0.0`) and replace the `changelog` entries.
+2. Commit and push to `main`.
+
+The workflow then builds the plugin with that version, creates the `v<version>` GitHub release with the zip attached,
+and commits the new entry (with the zip's MD5 checksum) to `manifest.json`, which is what Jellyfin reads from the
+repository URL in [Installation](#installation). Pushes that don't change the version do nothing, and the release can
+also be started by hand from the Actions tab ("Release" > "Run workflow").
+
+To build a release locally instead: `pip install pyyaml` and run `python buildRelease.py`. The zip and release notes
+end up in `artifacts/`.
+

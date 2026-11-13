@@ -7,15 +7,6 @@
         "owner": "Detsibli",
         "overview": "Cinema Mode with trailer libraries. Based on Cinema Mode by CherryFloors.",
         "imageUrl": "https://github.com/Detsibli/jellyfin-plugin-cinemamodeplus/raw/main/Jellyfin.Plugin.CinemaModePlus/Images/jellyfin-plugin-cinemamodeplus.png",
-        "versions": [
-            {
-                "checksum": "d5894d7278f3131d63a5e06b83c7724d",
-                "changelog": "- First release of Cinema Mode Plus, a fork of Cinema Mode 0.6.0 by CherryFloors.\n- Import settings from the original Cinema Mode plugin on first start.\n- Add Trailer Source option to play trailers from trailer libraries, movie folders, or both.\n- Add mixing modes (alternate, shuffle, library first, movie folder first) for combined trailer sources.\n- Add Trailers4Jellyfin integration to use its download folder as a trailer library.\n- Add option to allow unrated library trailers when enforcing rating limits.\n",
-                "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://github.com/Detsibli/jellyfin-plugin-cinemamodeplus/releases/download/v0.7.0.0/cinemamodeplus_0.7.0.0.zip",
-                "timestamp": "2026-11-12T18:30:59.008830",
-                "version": "0.7.0.0"
-            }
-        ]
+        "versions": []
     }
 ]

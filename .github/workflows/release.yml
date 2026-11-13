@@ -1,0 +1,78 @@
+# Publishes a GitHub release and updates manifest.json whenever main has a version in build.yaml
+# that has not been released yet. To release: bump `version` (and `changelog`) in build.yaml and push to main.
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'manifest.json'
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION="$(python buildRelease.py --print-version)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "Release v$VERSION already exists, nothing to do."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.version.outputs.exists == 'false'
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build and package
+        if: steps.version.outputs.exists == 'false'
+        run: python buildRelease.py
+
+      - name: Create GitHub release
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          gh release create "v$VERSION" "artifacts/cinemamodeplus_$VERSION.zip" \
+            --title "Cinema Mode Plus $VERSION" \
+            --notes-file artifacts/release-notes.md \
+            --target "$GITHUB_SHA"
+
+      # The manifest is pushed after the release exists, so it never points at a missing zip.
+      - name: Commit updated manifest
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "Update manifest for v$VERSION [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main
