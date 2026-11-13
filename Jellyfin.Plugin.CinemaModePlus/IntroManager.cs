@@ -262,6 +262,9 @@ namespace Jellyfin.Plugin.CinemaModePlus
 
         private int CandidateCount => this.LocalCandidates.Count + this.LibraryCandidates.Count;
 
+        public int LocalReturned { get; private set; } = 0;
+        public int LibraryReturned { get; private set; } = 0;
+
         public TrailerSelector(BaseItem Feature, User User, PluginConfiguration Config, List<TrailerLibrary> libraries, ILogger logger)
         {
             this.ShownTrailers.Add(Feature.Id);
@@ -362,7 +365,7 @@ namespace Jellyfin.Plugin.CinemaModePlus
             // Videos inside a trailer library are trailers themselves, not features with trailers.
             if (this.Libraries.Count > 0)
             {
-                moviesIter = moviesIter.Where(x => !TrailerLibraryResolver.IsInTrailerLibrary(x, this.Libraries));
+                moviesIter = moviesIter.Where(x => !TrailerLibraryResolver.IsLibraryTrailer(x, this.Libraries));
             }
 
             // TODO: Remove when jf team fixes min rating query
@@ -389,7 +392,9 @@ namespace Jellyfin.Plugin.CinemaModePlus
                 query.ParentId = library.Id;
                 foreach (BaseItem item in Plugin.LibraryManager.GetItemList(query))
                 {
-                    if (item is Video && !string.IsNullOrEmpty(item.Path))
+                    // Skip extras owned by a movie (those are local trailers) and anything too long to be a trailer.
+                    if (item is Video && !string.IsNullOrEmpty(item.Path) && item.OwnerId.Equals(Guid.Empty)
+                        && TrailerLibraryResolver.IsTrailerLength(item))
                     {
                         found.TryAdd(item.Id, item);
                     }
@@ -484,6 +489,7 @@ namespace Jellyfin.Plugin.CinemaModePlus
                 BaseItem trailer = this.LibraryCandidates.ElementAt(libIdx);
                 this.ShownTrailers.Add(trailer.Id);
                 this.LibraryCandidates.RemoveAt(libIdx);
+                this.LibraryReturned++;
                 return new IntroInfo { ItemId = trailer.Id, Path = trailer.Path };
             }
 
@@ -491,6 +497,7 @@ namespace Jellyfin.Plugin.CinemaModePlus
             Movie movie = this.LocalCandidates.ElementAt(idx);
             this.ShownTrailers.Add(movie.Id);
             this.LocalCandidates.RemoveAt(idx);
+            this.LocalReturned++;
 
             int trailerID = this.RNG.Next(movie.LocalTrailers.Count);
             BaseItem item = movie.LocalTrailers.ElementAt(trailerID);
@@ -583,12 +590,15 @@ namespace Jellyfin.Plugin.CinemaModePlus
                 }
 
                 // Playing a trailer straight from a trailer library should not get its own cinema intro.
-                if (TrailerLibraryResolver.IsInTrailerLibrary(item, trailerLibraries))
+                if (TrailerLibraryResolver.IsLibraryTrailer(item, trailerLibraries))
                 {
+                    this.Logger.LogInformation($"|cinema-mode-plus| '{item.Name}' is a trailer from a trailer library, skipping intros");
                     yield break;
                 }
             }
 
+            int trailerPreRollCount = 0;
+            int featurePreRollCount = 0;
             if (Plugin.Instance.Configuration.TrailerPreRollsLibrary != "-")
             {
                 IntroInfo? trailerPreRoll = null;
@@ -599,16 +609,17 @@ namespace Jellyfin.Plugin.CinemaModePlus
                 }
                 catch (System.Exception e)
                 {
-                    this.Logger.LogError("|cinema-mode-plus| Exception encountered fetching Trailer Pre-Roll");
-                    this.Logger.LogError(e.StackTrace);
+                    this.Logger.LogError(e, "|cinema-mode-plus| Exception encountered fetching Trailer Pre-Roll");
                 }
 
                 if (trailerPreRoll != null)
                 {
+                    trailerPreRollCount = 1;
                     yield return trailerPreRoll;
                 }
             }
 
+            string trailerSummary = "trailers off";
             if (Plugin.Instance.Configuration.NumberOfTrailers > 0)
             {
                 List<IntroInfo> trailers = new List<IntroInfo>();
@@ -616,11 +627,11 @@ namespace Jellyfin.Plugin.CinemaModePlus
                 {
                     TrailerSelector trailerSelector = new TrailerSelector(item, user, Plugin.Instance.Configuration, trailerLibraries, this.Logger);
                     trailers = trailerSelector.GetTrailers().ToList();
+                    trailerSummary = $"{trailers.Count} trailer(s) ({trailerSelector.LocalReturned} from movie folders, {trailerSelector.LibraryReturned} from trailer libraries)";
                 }
                 catch (System.Exception e)
                 {
-                    this.Logger.LogError("|cinema-mode-plus| Exception encountered fetching Trailers");
-                    this.Logger.LogError(e.StackTrace);
+                    this.Logger.LogError(e, "|cinema-mode-plus| Exception encountered fetching Trailers");
                 }
 
                 foreach (IntroInfo trailer in trailers)
@@ -639,15 +650,17 @@ namespace Jellyfin.Plugin.CinemaModePlus
                 }
                 catch (System.Exception e)
                 {
-                    this.Logger.LogError("|cinema-mode-plus| Exception encountered fetching Feature Pre-Roll");
-                    this.Logger.LogError(e.StackTrace);
+                    this.Logger.LogError(e, "|cinema-mode-plus| Exception encountered fetching Feature Pre-Roll");
                 }
 
                 if (featurePreRoll != null)
                 {
+                    featurePreRollCount = 1;
                     yield return featurePreRoll;
                 }
             }
+
+            this.Logger.LogInformation($"|cinema-mode-plus| Intros for '{item.Name}': {trailerPreRollCount} trailer pre-roll, {trailerSummary}, {featurePreRollCount} feature pre-roll (source: {config.TrailerSource}, trailer libraries: {(trailerLibraries.Count == 0 ? "none" : string.Join(", ", trailerLibraries.Select(l => l.Name)))})");
         }
     }
 }

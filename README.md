@@ -205,6 +205,13 @@ will be ignored by the plugin.
 ### Troubleshooting
 
 If the plugin is not providing intros check the following:
+- The server log has a line starting with `|cinema-mode-plus| Intros for` each time a movie starts, showing how many
+pre-rolls and trailers were picked and from where.
+- A trailer library folder must **not** be named `Trailers` (or `Extras`, `Featurettes`, ...). Jellyfin reserves those
+names for movie extras and silently skips the videos inside, so the library stays empty. Rename the folder (e.g.
+`Cinema Trailers`), update the library path, and, for Trailers4Jellyfin, its download folder.
+- Don't select your main Movies library as a trailer library; use **Both** to combine movie-folder trailers with a
+trailer library.
 - "Cinema Mode" is enabled in your users playback settings.
 - You have some trailers stored alongside your media following the naming conventions given
 [here](https://jellyfin.org/docs/general/server/media/movies/#movie-extras).

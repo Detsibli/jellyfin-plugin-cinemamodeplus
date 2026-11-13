@@ -29,6 +29,22 @@ namespace Jellyfin.Plugin.CinemaModePlus
     {
         public const string Trailers4JellyfinConfigFile = "Jellyfin.Plugin.Trailers4Jellyfin.xml";
 
+        /// <summary>
+        /// Videos longer than this are never treated as trailers, so selecting a regular movie library by mistake
+        /// cannot play full movies as trailers or stop those movies from getting intros.
+        /// </summary>
+        public static readonly TimeSpan MaxTrailerLength = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Folder names Jellyfin reserves for extras (see Emby.Naming). Files directly inside a library folder with one
+        /// of these names are treated as extras without an owner and never show up in the library.
+        /// </summary>
+        public static readonly HashSet<string> ReservedFolderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "trailers", "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes",
+            "samples", "shorts", "clips", "other", "others", "theme-music", "backdrops",
+        };
+
         public static bool UsesLocalTrailers(PluginConfiguration config)
         {
             return config.TrailerSource != TrailerSources.Library;
@@ -94,6 +110,14 @@ namespace Jellyfin.Plugin.CinemaModePlus
                 }
             }
 
+            foreach (string path in libraries.Values.SelectMany(l => l.Paths))
+            {
+                if (HasReservedName(path))
+                {
+                    logger.LogWarning($"|cinema-mode-plus| Trailer folder '{path}' uses a name Jellyfin reserves for extras, so Jellyfin will not add its videos to the library. Rename the folder (e.g. 'Cinema Trailers') and update the library.");
+                }
+            }
+
             return libraries.Values.ToList();
         }
 
@@ -128,7 +152,25 @@ namespace Jellyfin.Plugin.CinemaModePlus
             return null;
         }
 
-        /// <summary>True when the item lives inside one of the trailer libraries (e.g. someone plays a trailer directly).</summary>
+        public static bool HasReservedName(string folder)
+        {
+            string name = Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            return ReservedFolderNames.Contains(name);
+        }
+
+        /// <summary>True when the video is short enough to be a trailer (or its length is unknown).</summary>
+        public static bool IsTrailerLength(BaseItem item)
+        {
+            return !item.RunTimeTicks.HasValue || item.RunTimeTicks.Value <= MaxTrailerLength.Ticks;
+        }
+
+        /// <summary>True when the item is a trailer from one of the trailer libraries (e.g. someone plays a trailer directly).</summary>
+        public static bool IsLibraryTrailer(BaseItem item, IEnumerable<TrailerLibrary> libraries)
+        {
+            return IsTrailerLength(item) && IsInTrailerLibrary(item, libraries);
+        }
+
+        /// <summary>True when the item lives inside one of the trailer libraries.</summary>
         public static bool IsInTrailerLibrary(BaseItem item, IEnumerable<TrailerLibrary> libraries)
         {
             if (string.IsNullOrEmpty(item.Path))

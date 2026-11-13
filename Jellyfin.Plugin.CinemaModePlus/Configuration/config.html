@@ -120,6 +120,11 @@
                         </div>
                         <div id="trailer-library-options" style="display:none">
                             <h4 class="sectionTitle">Trailer Libraries</h4>
+                            <div class="fieldDescription" style="margin-bottom:0.5em">
+                                Pick libraries that contain <b>only trailers</b>. Don't pick your main Movies library: trailers
+                                inside movie folders are covered by the "Trailers in movie folders" source (use "Both").
+                                Videos longer than 10 minutes are never used as trailers.
+                            </div>
                             <div id="trailer-library-list" style="margin-bottom:1em">
                             </div>
                             <div class="checkboxContainer checkboxContainer-withDescription">
@@ -550,6 +555,19 @@
                 document.getElementById('trailer-mix-container').style.display = source == "Both" ? "block" : "none";
             }
 
+            var reservedFolderNames = ["trailers", "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews",
+                "scenes", "samples", "shorts", "clips", "other", "others", "theme-music", "backdrops"];
+
+            function hasReservedName(path) {
+                var parts = (path || "").replace(/[\\/]+$/, "").split(/[\\/]/);
+                return reservedFolderNames.includes(parts[parts.length - 1].toLowerCase());
+            }
+
+            function reservedNameWarning(path) {
+                return "&#9888; Jellyfin ignores videos in a folder named \"" + escapeHtml(path.replace(/[\\/]+$/, "").split(/[\\/]/).pop()) +
+                    "\" (it's reserved for movie extras), so nothing in it can be played. Rename the folder (e.g. \"Cinema Trailers\") and update the library path.";
+            }
+
             function normalizePath(path) {
                 return (path || "").replace(/[\\\/]+$/, "").toLowerCase();
             }
@@ -571,6 +589,13 @@
                             label.appendChild(checkbox);
                             label.appendChild(document.createTextNode(" " + folder.Name));
                             list.appendChild(label);
+                            var badFolder = (folder.Locations || []).find(hasReservedName);
+                            if (badFolder) {
+                                var warn = document.createElement('div');
+                                warn.className = "fieldDescription";
+                                warn.innerHTML = escapeHtml(folder.Name) + ": " + reservedNameWarning(badFolder);
+                                list.appendChild(warn);
+                            }
                         }
                     }
                     if (!list.children.length) {
@@ -602,6 +627,9 @@
                             } else {
                                 messages.push("Detected download folder <b>" + escapeHtml(folder) + "</b>. It is not a library of its own; make sure it is inside a library so Jellyfin scans it.");
                             }
+                        }
+                        if (folder && hasReservedName(folder)) {
+                            messages.push(reservedNameWarning(folder) + " Change the download folder in the Trailers4Jellyfin settings too.");
                         }
                         if (t4j.EnableCinemaMode) {
                             messages.push("&#9888; Trailers4Jellyfin's own Cinema Mode is turned on, so you may get extra trailers. Turn it off in the Trailers4Jellyfin settings and let this plugin handle playback.");
