@@ -7,6 +7,24 @@
 
 Photo by <a href="https://unsplash.com/@grstocks?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">GR Stocks</a> on <a href="https://unsplash.com/photos/q8P8YoR6erg?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
   
+## About This Fork (Cinema Mode Plus)
+
+This is a fork of [CherryFloors/jellyfin-plugin-cinemamode](https://github.com/CherryFloors/jellyfin-plugin-cinemamode)
+that adds more ways to pick trailers. Everything from the original plugin still works the same way. New in this fork:
+
+- **Trailer libraries** - choose one or more libraries where every video is a trailer, just like the pre-roll libraries.
+- **Trailer Source: movie folders, trailer libraries, or both** - with mixing modes (alternate, shuffle, library first,
+movie folder first) when using both.
+- **Trailers4Jellyfin integration** - use the Trailers4Jellyfin plugin's download folder as a trailer library
+automatically, with a warning if its own cinema mode would double up trailers.
+- **Allow unrated library trailers** - so trailers for upcoming movies (which often have no rating yet) can still play
+when the rating limit is enforced.
+
+See [Trailer Source](#trailer-source) and [Trailers4Jellyfin Integration](#trailers4jellyfin-integration) in the User
+Guide for details. The plugin keeps the same internal ID as the original, so it replaces Cinema Mode and keeps your
+existing settings. The repository URL under [Installation](#installation) installs the original plugin; to use this fork,
+follow the [Build Process](#build-process) and copy the built DLL over the installed Cinema Mode plugin.
+
 ## About
 
 Jellyfin Cinema Mode is a plugin built with .NET that allows users to enable Jellyfin's Cinema Mode functionality with 
