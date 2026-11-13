@@ -9,6 +9,14 @@
         "imageUrl": "https://github.com/Detsibli/jellyfin-plugin-cinemamodeplus/raw/main/Jellyfin.Plugin.CinemaModePlus/Images/jellyfin-plugin-cinemamodeplus.png",
         "versions": [
             {
+                "version": "0.7.2.0",
+                "changelog": "- Trailer Source is now Cinema (movie folder trailers), Trailers4Jellyfin, or Both.\n- Trailers4Jellyfin downloads are used by default when that source is picked; extra trailer libraries are optional.\n- Includes 0.7.1.0 fixes - no more missing intros when a movie library is ticked as a trailer library, warnings for trailer folders named \"Trailers\", and a per-movie intro summary in the log.\n",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/Detsibli/jellyfin-plugin-cinemamodeplus/releases/download/v0.7.2.0/cinemamodeplus_0.7.2.0.zip",
+                "checksum": "6f854e431d1b16fdc8d0863445f25851",
+                "timestamp": "2026-11-13T03:50:43Z"
+            },
+            {
                 "version": "0.7.1.0",
                 "changelog": "- Fix no intros at all (including pre-rolls) when a regular movie library was selected as a trailer library.\n- Never use videos longer than 10 minutes as library trailers, and ignore movie extras in trailer libraries.\n- Warn on the settings page and in the log when a trailer folder is named \"Trailers\" (Jellyfin does not index it).\n- Log a summary of the intros chosen for each movie to make troubleshooting easier.\n",
                 "targetAbi": "10.11.0.0",
