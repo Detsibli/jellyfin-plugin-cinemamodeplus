@@ -8,9 +8,11 @@ import sys
 from dataclasses import dataclass
 
 
-RELEASE_DIR = "Jellyfin.Plugin.CinemaMode/bin/release/net9.0/"
-RELEASE_DLL = "Jellyfin.Plugin.CinemaMode/bin/release/net9.0/Jellyfin.Plugin.CinemaMode.dll"
-RELEASE_META = "Jellyfin.Plugin.CinemaMode/bin/release/net9.0/meta.json"
+REPO_URL = "https://github.com/Detsibli/jellyfin-plugin-cinemamodeplus"
+PROJECT = "Jellyfin.Plugin.CinemaModePlus"
+RELEASE_DIR = f"{PROJECT}/bin/release/net9.0/"
+RELEASE_DLL = f"{PROJECT}/bin/release/net9.0/{PROJECT}.dll"
+RELEASE_META = f"{PROJECT}/bin/release/net9.0/meta.json"
 
 
 @dataclass
@@ -44,14 +46,14 @@ class Meta:
             changelog=changelog,
             description=build_yaml["description"],
             guid=build_yaml["guid"],
-            imageUrl="https://github.com/CherryFloors/jellyfin-plugin-cinemamode/raw/main/Jellyfin.Plugin.CinemaMode/Images/jellyfin-plugin-cinemamode.png",
+            imageUrl=f"{REPO_URL}/raw/main/{PROJECT}/Images/jellyfin-plugin-cinemamodeplus.png",
             name=build_yaml["name"],
             overview=build_yaml["overview"],
             owner=build_yaml["owner"],
             targetAbi=build_yaml["targetAbi"],
             timestamp=datetime.datetime.now().isoformat(),
             version=build_yaml["version"],
-            zip_file_name=f'cinemamode_{build_yaml["version"]}.zip',
+            zip_file_name=f'cinemamodeplus_{build_yaml["version"]}.zip',
         )
 
     def save_file(self) -> None:
@@ -94,7 +96,7 @@ class ManifestEntry:
             checksum=_checksum,
             changelog=meta.changelog,
             targetAbi=meta.targetAbi,
-            sourceUrl=f"https://github.com/CherryFloors/jellyfin-plugin-cinemamode/releases/download/v{meta.version}/{meta.zip_file_name}",
+            sourceUrl=f"{REPO_URL}/releases/download/v{meta.version}/{meta.zip_file_name}",
             timestamp=meta.timestamp,
             version=meta.version,
         )
@@ -126,7 +128,7 @@ class ManifestEntry:
 
 
 def build() -> None:
-    build_args = ["dotnet", "publish", "./Jellyfin.Plugin.CinemaMode/Jellyfin.Plugin.CinemaMode.csproj", "--configuration", "release", "--output", "bin"]
+    build_args = ["dotnet", "publish", f"./{PROJECT}/{PROJECT}.csproj", "--configuration", "release", "--output", "bin"]
     proc_output = subprocess.run(build_args, capture_output=True, text=True)
     print(proc_output.stdout)
     print(proc_output.stderr)
@@ -135,7 +137,7 @@ def build() -> None:
 def package(meta: Meta) -> None:
     # Get meta data
     with zipfile.ZipFile(f"{RELEASE_DIR}/{meta.zip_file_name}", "w") as zip:
-        zip.write(RELEASE_DLL, "Jellyfin.Plugin.CinemaMode.dll")
+        zip.write(RELEASE_DLL, f"{PROJECT}.dll")
         zip.write(RELEASE_META, "meta.json")
 
 

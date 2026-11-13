@@ -1,16 +1,20 @@
-name: 'Cinema Mode'
-guid: '5fcefe1b-df1f-4596-ac57-f2f939c294c5'
+name: 'Cinema Mode Plus'
+guid: '95a28cc1-e7c7-47b2-976b-32aa580be17e'
 version: '0.7.0.0'
 targetAbi: '10.11.0.0'
 framework: 'net9.0'
-owner: 'CherryFloors'
-overview: 'Enable Cinema Mode with local trailers and pre-rolls.'
+owner: 'Detsibli'
+overview: 'Cinema Mode with trailer libraries, local trailers and pre-rolls. Based on Cinema Mode by CherryFloors.'
 description: >
-  Enable Cinema Mode with local trailers and pre-rolls.
+  Enable Cinema Mode with local trailers, trailer libraries (including Trailers4Jellyfin downloads) and pre-rolls.
+  Cinema Mode Plus is a fork of Cinema Mode by CherryFloors (https://github.com/CherryFloors/jellyfin-plugin-cinemamode),
+  released under the MIT License.
 category: 'General'
 artifacts:
-- 'Jellyfin.Plugin.CinemaMode.dll'
+- 'Jellyfin.Plugin.CinemaModePlus.dll'
 changelog:
+  - First release of Cinema Mode Plus, a fork of Cinema Mode 0.6.0 by CherryFloors.
+  - Import settings from the original Cinema Mode plugin on first start.
   - Add Trailer Source option to play trailers from trailer libraries, movie folders, or both.
   - Add mixing modes (alternate, shuffle, library first, movie folder first) for combined trailer sources.
   - Add Trailers4Jellyfin integration to use its download folder as a trailer library.

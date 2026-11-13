@@ -6,11 +6,11 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 
-namespace Jellyfin.Plugin.CinemaMode
+namespace Jellyfin.Plugin.CinemaModePlus
 {
     public class IntroProvider : IIntroProvider
     {
-        public string Name { get; } = "CinemaMode";
+        public string Name { get; } = "CinemaModePlus";
 
         public readonly ILogger<IntroProvider> Logger;
 

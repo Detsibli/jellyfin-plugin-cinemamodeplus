@@ -8,11 +8,11 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using Jellyfin.Data.Enums;
 using Microsoft.Extensions.Logging;
-using Jellyfin.Plugin.CinemaMode.Configuration;
+using Jellyfin.Plugin.CinemaModePlus.Configuration;
 
 #nullable enable
 
-namespace Jellyfin.Plugin.CinemaMode
+namespace Jellyfin.Plugin.CinemaModePlus
 {
 
     enum PreRollType
@@ -236,7 +236,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 return new IntroInfo { ItemId = preRoll.Id, Path = preRoll.Path };
             }
 
-            this.Logger.LogInformation($"|jellyfin-cinema-mode| No Pre-Rolls Type: {this.Category} User: {this.User}");
+            this.Logger.LogInformation($"|cinema-mode-plus| No Pre-Rolls Type: {this.Category} User: {this.User}");
             return null;
 
         }
@@ -432,7 +432,7 @@ namespace Jellyfin.Plugin.CinemaMode
 
             if (this.CandidateCount == 0)
             {
-                this.Logger.LogDebug($"|jellyfin-cinema-mode| No trailer found: {this.Feature.Name} {this.Feature.InheritedParentalRatingValue})");
+                this.Logger.LogDebug($"|cinema-mode-plus| No trailer found: {this.Feature.Name} {this.Feature.InheritedParentalRatingValue})");
             }
         }
 
@@ -502,13 +502,13 @@ namespace Jellyfin.Plugin.CinemaMode
             // Early break if we are enforcing trailer limit and the feature is "unrated" or has no rating
             if (this.Config.EnforceRatingLimitTrailers && this.Feature.InheritedParentalRatingValue == null)
             {
-                this.Logger.LogInformation("|jellyfin-cinema-mode| Feature has no rating, skipping trailers");
+                this.Logger.LogInformation("|cinema-mode-plus| Feature has no rating, skipping trailers");
                 yield break;
             }
 
             if (!this.UseLocal && this.Libraries.Count == 0)
             {
-                this.Logger.LogInformation("|jellyfin-cinema-mode| Trailer source is set to library but no trailer library could be resolved");
+                this.Logger.LogInformation("|cinema-mode-plus| Trailer source is set to library but no trailer library could be resolved");
                 yield break;
             }
 
@@ -579,7 +579,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 }
                 catch (System.Exception e)
                 {
-                    this.Logger.LogError(e, "|jellyfin-cinema-mode| Exception encountered resolving trailer libraries");
+                    this.Logger.LogError(e, "|cinema-mode-plus| Exception encountered resolving trailer libraries");
                 }
 
                 // Playing a trailer straight from a trailer library should not get its own cinema intro.
@@ -599,7 +599,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 }
                 catch (System.Exception e)
                 {
-                    this.Logger.LogError("|jellyfin-cinema-mode| Exception encountered fetching Trailer Pre-Roll");
+                    this.Logger.LogError("|cinema-mode-plus| Exception encountered fetching Trailer Pre-Roll");
                     this.Logger.LogError(e.StackTrace);
                 }
 
@@ -619,7 +619,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 }
                 catch (System.Exception e)
                 {
-                    this.Logger.LogError("|jellyfin-cinema-mode| Exception encountered fetching Trailers");
+                    this.Logger.LogError("|cinema-mode-plus| Exception encountered fetching Trailers");
                     this.Logger.LogError(e.StackTrace);
                 }
 
@@ -639,7 +639,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 }
                 catch (System.Exception e)
                 {
-                    this.Logger.LogError("|jellyfin-cinema-mode| Exception encountered fetching Feature Pre-Roll");
+                    this.Logger.LogError("|cinema-mode-plus| Exception encountered fetching Feature Pre-Roll");
                     this.Logger.LogError(e.StackTrace);
                 }
 

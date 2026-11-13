@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using MediaBrowser.Model.Plugins;
 
-namespace Jellyfin.Plugin.CinemaMode.Configuration
+namespace Jellyfin.Plugin.CinemaModePlus.Configuration
 {
     public class PreRollSelectionConfig
     {

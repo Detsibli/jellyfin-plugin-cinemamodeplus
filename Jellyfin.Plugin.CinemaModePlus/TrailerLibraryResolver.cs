@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
-using Jellyfin.Plugin.CinemaMode.Configuration;
+using Jellyfin.Plugin.CinemaModePlus.Configuration;
 using MediaBrowser.Controller.Entities;
 using Microsoft.Extensions.Logging;
 
 #nullable enable
 
-namespace Jellyfin.Plugin.CinemaMode
+namespace Jellyfin.Plugin.CinemaModePlus
 {
     /// <summary>
     /// A folder whose videos are all treated as trailers, with the physical paths it covers.
@@ -59,7 +59,7 @@ namespace Jellyfin.Plugin.CinemaMode
             }
             catch (Exception e)
             {
-                logger.LogWarning(e, "|jellyfin-cinema-mode| Could not read the Trailers4Jellyfin configuration");
+                logger.LogWarning(e, "|cinema-mode-plus| Could not read the Trailers4Jellyfin configuration");
                 return null;
             }
         }
@@ -78,7 +78,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 BaseItem? item = Plugin.LibraryManager.GetItemById(libraryId);
                 if (item is null)
                 {
-                    logger.LogWarning($"|jellyfin-cinema-mode| Trailer library {id} no longer exists");
+                    logger.LogWarning($"|cinema-mode-plus| Trailer library {id} no longer exists");
                     continue;
                 }
 
@@ -105,7 +105,7 @@ namespace Jellyfin.Plugin.CinemaMode
         {
             if (string.IsNullOrEmpty(folder))
             {
-                logger.LogInformation("|jellyfin-cinema-mode| Trailers4Jellyfin folder requested but Trailers4Jellyfin is not installed or has no download folder");
+                logger.LogInformation("|cinema-mode-plus| Trailers4Jellyfin folder requested but Trailers4Jellyfin is not installed or has no download folder");
                 return null;
             }
 
@@ -124,7 +124,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 return new TrailerLibrary { Id = folderItem.Id, Name = folderItem.Name, Paths = new[] { folder } };
             }
 
-            logger.LogWarning($"|jellyfin-cinema-mode| Trailers4Jellyfin folder '{folder}' is not part of any Jellyfin library. Add it as a library so its trailers can be played.");
+            logger.LogWarning($"|cinema-mode-plus| Trailers4Jellyfin folder '{folder}' is not part of any Jellyfin library. Add it as a library so its trailers can be played.");
             return null;
         }
 

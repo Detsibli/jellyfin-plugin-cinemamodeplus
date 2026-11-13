@@ -1,16 +1,20 @@
-<h1 align="center">Jellyfin Cinema Mode Plugin</h1>
-<h3 align="center">Plugin for the <a href="https://jellyfin.org">Jellyfin Project</a></h3>
+<h1 align="center">Jellyfin Cinema Mode Plus</h1>
+<h3 align="center">Plugin for the <a href="https://jellyfin.org">Jellyfin Project</a>, based on <a href="https://github.com/CherryFloors/jellyfin-plugin-cinemamode">Cinema Mode</a> by CherryFloors</h3>
 
 <p align="center">
-<img alt="Plugin Banner" src="Jellyfin.Plugin.CinemaMode/Images/jellyfin-plugin-cinemamode.jpg"/>
+<img alt="Plugin Banner" src="Jellyfin.Plugin.CinemaModePlus/Images/jellyfin-plugin-cinemamodeplus.jpg"/>
 </p>
 
 Photo by <a href="https://unsplash.com/@grstocks?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">GR Stocks</a> on <a href="https://unsplash.com/photos/q8P8YoR6erg?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
   
-## About This Fork (Cinema Mode Plus)
+## Credits
 
-This is a fork of [CherryFloors/jellyfin-plugin-cinemamode](https://github.com/CherryFloors/jellyfin-plugin-cinemamode)
-that adds more ways to pick trailers. Everything from the original plugin still works the same way. New in this fork:
+Cinema Mode Plus is a fork of **[Cinema Mode](https://github.com/CherryFloors/jellyfin-plugin-cinemamode) by
+[CherryFloors](https://github.com/CherryFloors)**. All of the original pre-roll, trailer selection and seasonal tag
+features come from that project; this fork builds on top of it. Both are released under the [MIT License](LICENSE),
+and the original copyright notice is kept in the license file. If you like this plugin, please also star the original.
+
+### What Cinema Mode Plus adds
 
 - **Trailer libraries** - choose one or more libraries where every video is a trailer, just like the pre-roll libraries.
 - **Trailer Source: movie folders, trailer libraries, or both** - with mixing modes (alternate, shuffle, library first,
@@ -21,13 +25,17 @@ automatically, with a warning if its own cinema mode would double up trailers.
 when the rating limit is enforced.
 
 See [Trailer Source](#trailer-source) and [Trailers4Jellyfin Integration](#trailers4jellyfin-integration) in the User
-Guide for details. The plugin keeps the same internal ID as the original, so it replaces Cinema Mode and keeps your
-existing settings. The repository URL under [Installation](#installation) installs the original plugin; to use this fork,
-follow the [Build Process](#build-process) and copy the built DLL over the installed Cinema Mode plugin.
+Guide for details.
+
+### Switching from Cinema Mode
+
+Cinema Mode Plus is a separate plugin with its own ID, so it can be installed next to the original. On first start it
+copies your existing Cinema Mode settings, so nothing needs to be set up again. **Disable or uninstall the original
+Cinema Mode plugin afterwards**, otherwise both plugins will add intros and they will play twice.
 
 ## About
 
-Jellyfin Cinema Mode is a plugin built with .NET that allows users to enable Jellyfin's Cinema Mode functionality with 
+Jellyfin Cinema Mode Plus is a plugin built with .NET that allows users to enable Jellyfin's Cinema Mode functionality with 
 local trailers and pre-rolls. The system admin can configure a set number of trailers to play before a movie. In
 addition, pre-roll videos can be played before and after the block of trailers. All of this can be disabled at the user
 level by turning off 'Cinema Mode' in the users Playback settings. Pro-tip: Skip any pre-roll or trailer by pressing the 
@@ -40,11 +48,11 @@ section of the dashboard, click the plus sign to add a new repository. You can g
 but be sure to paste the following URL in the 'Repository URL' field exactly as it appears:
 
 ```
-https://raw.githubusercontent.com/CherryFloors/jellyfin-plugin-cinemamode/main/manifest.json
+https://raw.githubusercontent.com/Detsibli/jellyfin-plugin-cinemamodeplus/main/manifest.json
 ```
 
 Now that you have added the repository, click on the Catalog section at the top of the screen. Under General, you
-should see the Cinema Mode plugin. Click on the thumbnail and then click the 'install' button. Restart the server and
+should see the Cinema Mode Plus plugin. Click on the thumbnail and then click the 'install' button. Restart the server and
 you're ready to configure.
 
 More information about installing plugins can be found in the official docs
@@ -54,7 +62,7 @@ plenty of great tutorial videos for setting up Jellyfin, including how to instal
 ## User Guide
 
 <p align="center">
-<img alt="Plugin Diagram" src="https://github.com/CherryFloors/jellyfin-plugin-cinemamode/raw/main/Jellyfin.Plugin.CinemaMode/Images/cinema-mode-diagram.png"/>
+<img alt="Plugin Diagram" src="Jellyfin.Plugin.CinemaModePlus/Images/cinema-mode-diagram.png"/>
 </p>
 
 The plugin is designed to enable Jellyfin's Cinema Mode with **local** content. Trailers stored alongside movies (as

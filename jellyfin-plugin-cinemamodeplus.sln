@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.Plugin.CinemaMode", "Jellyfin.Plugin.CinemaMode\Jellyfin.Plugin.CinemaMode.csproj", "{D3A21D01-F96C-4F12-9E74-745858585974}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jellyfin.Plugin.CinemaModePlus", "Jellyfin.Plugin.CinemaModePlus\Jellyfin.Plugin.CinemaModePlus.csproj", "{D3A21D01-F96C-4F12-9E74-745858585974}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
