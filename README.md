@@ -139,30 +139,33 @@ default.
 
 Choose where trailers come from:
 
-- **Trailers in movie folders** (default) - Trailers stored alongside the movies in your libraries, as described above.
-- **Trailer libraries** - Every video in the selected libraries is treated as a trailer, the same way the Pre-Roll
-libraries work. Create a Jellyfin library (Movies, Home Videos or Mixed) pointing at a folder of trailers and tick it
-under **Trailer Libraries**.
-- **Both** - Combine the two sources. **Mixing** controls how they are combined:
-  - **Alternate** - library trailer, movie folder trailer, library trailer, and so on.
-  - **Shuffle** - pick at random from both pools.
-  - **Trailer libraries first** / **Movie folder trailers first** - use one source and fall back to the other.
+- **Cinema** (default) - Trailers stored alongside the movies in your library, as described above.
+- **Trailers4Jellyfin** - Trailers for upcoming and new movies downloaded by the Trailers4Jellyfin plugin. Its download
+folder is read from the Trailers4Jellyfin settings; it must be added to Jellyfin as a library (see below).
+- **Both** - Mix the two. **Mixing** controls how:
+  - **Alternate** - Trailers4Jellyfin trailer, Cinema trailer, Trailers4Jellyfin trailer, and so on.
+  - **Shuffle** - pick at random from both.
+  - **Trailers4Jellyfin first** / **Cinema first** - use one source and fall back to the other.
 
-Selection Rules, Consume Mode and Enforce Rating Limit apply to library trailers too, using the metadata of the trailer
-item itself (e.g. **Genre** matches the trailer's genres, **Unplayed** means the trailer has not been watched). A
-library trailer for the movie you are about to watch is skipped, and playing a video straight from a trailer library
-does not get its own intros.
+Under **Other trailer libraries (optional)** you can also tick extra libraries whose videos are all trailers; they are
+used together with Trailers4Jellyfin. Pick only libraries that contain nothing but trailers, never your main Movies
+library. Videos longer than 10 minutes are never used as trailers.
+
+Selection Rules, Consume Mode and Enforce Rating Limit apply to Trailers4Jellyfin trailers too, using the metadata of the
+trailer item itself (e.g. **Genre** matches the trailer's genres, **Unplayed** means the trailer has not been watched).
+A trailer for the movie you are about to watch is skipped, and playing a trailer directly does not get its own intros.
 
 #### Trailers4Jellyfin Integration
 
-If the Trailers4Jellyfin plugin is installed, tick **Include
-Trailers4Jellyfin downloads** to use its download folder as a trailer library automatically. The folder is read from
-the Trailers4Jellyfin settings, so it keeps working if you move it. The folder must be inside a Jellyfin library so it
-gets scanned. To avoid getting trailers twice, turn off Trailers4Jellyfin's own Cinema Mode option and let this plugin
+If the Trailers4Jellyfin plugin is installed, set **Trailer
+Source** to **Trailers4Jellyfin** or **Both** to use its download folder automatically. The folder is read from
+the Trailers4Jellyfin settings, so it keeps working if you move it. The folder must be added to Jellyfin as a
+library so it gets scanned, and it must **not** be named `Trailers` (Jellyfin reserves that name for movie extras and
+ignores the videos inside); use a name like `Cinema Trailers`. To avoid getting trailers twice, turn off Trailers4Jellyfin's own Cinema Mode option and let this plugin
 handle playback. The settings page warns you if it is still on.
 
 Trailers for upcoming movies often have no parental rating yet. With **Enforce Rating Limit** on, these would be
-skipped; tick **Allow Unrated Library Trailers** to allow them.
+skipped; tick **Allow Unrated Trailers4Jellyfin Trailers** to allow them.
 
 #### Selection Rules
 

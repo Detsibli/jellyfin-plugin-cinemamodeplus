@@ -103,8 +103,8 @@
                         <div class="selectContainer flex-shrink-zero">
                             <label class="selectLabel" for="trailer-source-select">Trailer Source</label>
                             <select is="emby-select" class="emby-select-withcolor emby-select" id="trailer-source-select" onchange="updateTrailerSourceVisibility()">
-                                <option value="LocalTrailers">Trailers in movie folders</option>
-                                <option value="Library">Trailer libraries</option>
+                                <option value="LocalTrailers">Cinema (trailers in movie folders)</option>
+                                <option value="Library">Trailers4Jellyfin</option>
                                 <option value="Both">Both</option>
                             </select>
                             <div class="selectArrowContainer">
@@ -112,58 +112,58 @@
                                 <span class="selectArrow material-icons keyboard_arrow_down" aria-hidden="true"></span>
                             </div>
                             <div class="fieldDescription">
-                                <b>Trailers in movie folders</b> uses trailers stored alongside the movies in your libraries
-                                (e.g. a "Trailers" subfolder or a "-trailer" suffix). <b>Trailer libraries</b> treats every
-                                video in the selected libraries as a trailer, just like the pre-roll libraries. <b>Both</b>
-                                combines the two.
+                                <b>Cinema</b> plays trailers stored with the movies in your library (a "Trailers" subfolder
+                                or a "-trailer" suffix). <b>Trailers4Jellyfin</b> plays the trailers for upcoming and new movies
+                                that the Trailers4Jellyfin plugin downloads. <b>Both</b> mixes the two.
                             </div>
                         </div>
                         <div id="trailer-library-options" style="display:none">
-                            <h4 class="sectionTitle">Trailer Libraries</h4>
-                            <div class="fieldDescription" style="margin-bottom:0.5em">
-                                Pick libraries that contain <b>only trailers</b>. Don't pick your main Movies library: trailers
-                                inside movie folders are covered by the "Trailers in movie folders" source (use "Both").
-                                Videos longer than 10 minutes are never used as trailers.
-                            </div>
-                            <div id="trailer-library-list" style="margin-bottom:1em">
-                            </div>
                             <div class="checkboxContainer checkboxContainer-withDescription">
                                 <label>
                                     <input is="emby-checkbox" type="checkbox" id="use-trailers4jellyfin" name="use-trailers4jellyfin" />
-                                    <span>Include Trailers4Jellyfin downloads</span>
+                                    <span>Use Trailers4Jellyfin downloads</span>
                                 </label>
                                 <div class="fieldDescription checkboxFieldDescription">
-                                    Also play trailers from the Trailers4Jellyfin plugin's download folder, so you don't need to
-                                    select that library by hand. The folder must be part of a Jellyfin library.
+                                    The download folder is read from the Trailers4Jellyfin settings automatically. It must be
+                                    added to Jellyfin as a library.
                                     <div id="trailers4jellyfin-status" style="margin-top:0.5em"></div>
                                 </div>
                             </div>
-                            <div class="checkboxContainer checkboxContainer-withDescription">
-                                <label>
-                                    <input is="emby-checkbox" type="checkbox" id="library-trailers-allow-unrated" name="library-trailers-allow-unrated" />
-                                    <span>Allow Unrated Library Trailers</span>
-                                </label>
-                                <div class="fieldDescription checkboxFieldDescription">
-                                    Only applies when Enforce Rating Limit is on. Trailers for upcoming movies often have no rating yet,
-                                    so Enforce Rating Limit would skip them. Turn this on to allow unrated videos from the trailer libraries.
-                                </div>
-                            </div>
                             <div class="selectContainer flex-shrink-zero" id="trailer-mix-container">
-                                <label class="selectLabel" for="trailer-mix-select">Mixing (Both)</label>
+                                <label class="selectLabel" for="trailer-mix-select">Mixing</label>
                                 <select is="emby-select" class="emby-select-withcolor emby-select" id="trailer-mix-select">
-                                    <option value="Alternate">Alternate (library, movie folder, library, ...)</option>
+                                    <option value="Alternate">Alternate (Trailers4Jellyfin, Cinema, Trailers4Jellyfin, ...)</option>
                                     <option value="Shuffle">Shuffle (random from both)</option>
-                                    <option value="LibraryFirst">Trailer libraries first</option>
-                                    <option value="LocalFirst">Movie folder trailers first</option>
+                                    <option value="LibraryFirst">Trailers4Jellyfin first</option>
+                                    <option value="LocalFirst">Cinema first</option>
                                 </select>
                                 <div class="selectArrowContainer">
                                     <div style="visibility:hidden;display:none;">0</div>
                                     <span class="selectArrow material-icons keyboard_arrow_down" aria-hidden="true"></span>
                                 </div>
                                 <div class="fieldDescription">
-                                    How the two sources are combined when the source is set to Both. Selection rules apply to both sources.
+                                    How the two sources are combined. Selection rules apply to both.
                                 </div>
                             </div>
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label>
+                                    <input is="emby-checkbox" type="checkbox" id="library-trailers-allow-unrated" name="library-trailers-allow-unrated" />
+                                    <span>Allow Unrated Trailers4Jellyfin Trailers</span>
+                                </label>
+                                <div class="fieldDescription checkboxFieldDescription">
+                                    Only applies when Enforce Rating Limit is on. Upcoming movies often have no rating yet, so
+                                    Enforce Rating Limit would skip their trailers. Turn this on to allow them.
+                                </div>
+                            </div>
+                            <details style="margin-bottom:1.5em">
+                                <summary>Other trailer libraries (optional)</summary>
+                                <div class="fieldDescription" style="margin:0.5em 0">
+                                    Also play every video from these libraries as a trailer, the same way pre-roll libraries work.
+                                    Only pick libraries that contain <b>only trailers</b>, never your main Movies library.
+                                    Videos longer than 10 minutes are never used as trailers.
+                                </div>
+                                <div id="trailer-library-list"></div>
+                            </details>
                         </div>
                         <div class="sectionTitleContainer flex align-items-center">
                             <h4 class="sectionTitle">Selection Rules</h4>
@@ -597,6 +597,9 @@
                                 list.appendChild(warn);
                             }
                         }
+                    }
+                    if (getTrailerLibraries().length) {
+                        list.closest('details').open = true;
                     }
                     if (!list.children.length) {
                         list.innerHTML = '<div class="fieldDescription">No movie, home video or mixed libraries found.</div>';

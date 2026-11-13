@@ -1,6 +1,6 @@
 name: 'Cinema Mode Plus'
 guid: '95a28cc1-e7c7-47b2-976b-32aa580be17e'
-version: '0.7.1.0'
+version: '0.7.2.0'
 targetAbi: '10.11.0.0'
 framework: 'net9.0'
 owner: 'Detsibli'
@@ -13,7 +13,7 @@ category: 'General'
 artifacts:
 - 'Jellyfin.Plugin.CinemaModePlus.dll'
 changelog:
-  - Fix no intros at all (including pre-rolls) when a regular movie library was selected as a trailer library.
-  - Never use videos longer than 10 minutes as library trailers, and ignore movie extras in trailer libraries.
-  - Warn on the settings page and in the log when a trailer folder is named "Trailers" (Jellyfin does not index it).
-  - Log a summary of the intros chosen for each movie to make troubleshooting easier.
+  - Trailer Source is now Cinema (movie folder trailers), Trailers4Jellyfin, or Both.
+  - Trailers4Jellyfin downloads are used by default when that source is picked; extra trailer libraries are optional.
+  - Includes 0.7.1.0 fixes - no more missing intros when a movie library is ticked as a trailer library, warnings for
+    trailer folders named "Trailers", and a per-movie intro summary in the log.

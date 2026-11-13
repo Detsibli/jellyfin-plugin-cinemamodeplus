@@ -126,7 +126,7 @@ namespace Jellyfin.Plugin.CinemaModePlus.Configuration
             TrailerConsumeMode = false;
             TrailerSource = TrailerSources.LocalTrailers;
             TrailerLibraries = new List<string>();
-            UseTrailers4JellyfinFolder = false;
+            UseTrailers4JellyfinFolder = true;
             TrailerMixMode = TrailerMixModes.Alternate;
             LibraryTrailersAllowUnrated = false;
         }
