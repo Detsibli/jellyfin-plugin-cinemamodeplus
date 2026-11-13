@@ -244,7 +244,10 @@ namespace Jellyfin.Plugin.CinemaMode
 
     class TrailerSelector
     {
-        private List<Movie> Trailers { get; set; } = new List<Movie>() { };
+        // Movies that have local trailers (trailers in the movie's folder / Trailers subfolder).
+        private List<Movie> LocalCandidates { get; set; } = new List<Movie>() { };
+        // Videos from the trailer libraries; the item itself is the trailer.
+        private List<BaseItem> LibraryCandidates { get; set; } = new List<BaseItem>() { };
         private int Returned { get; set; } = 0;
         private List<Guid> ShownTrailers = new List<Guid>() { };
         private Random RNG { get; }
@@ -253,8 +256,13 @@ namespace Jellyfin.Plugin.CinemaMode
         private User User { get; }
         private List<TrailerSelectionConfig> selectionRules { get; set; } = new List<TrailerSelectionConfig>() { };
         private readonly ILogger Logger;
+        private bool UseLocal { get; }
+        private List<TrailerLibrary> Libraries { get; }
+        private bool NextFromLibrary = true;
 
-        public TrailerSelector(BaseItem Feature, User User, Jellyfin.Plugin.CinemaMode.Configuration.PluginConfiguration Config, ILogger logger)
+        private int CandidateCount => this.LocalCandidates.Count + this.LibraryCandidates.Count;
+
+        public TrailerSelector(BaseItem Feature, User User, PluginConfiguration Config, List<TrailerLibrary> libraries, ILogger logger)
         {
             this.ShownTrailers.Add(Feature.Id);
             this.RNG = new Random();
@@ -262,20 +270,33 @@ namespace Jellyfin.Plugin.CinemaMode
             this.Feature = Feature;
             this.User = User;
             this.Logger = logger;
+            this.UseLocal = TrailerLibraryResolver.UsesLocalTrailers(Config);
+            this.Libraries = TrailerLibraryResolver.UsesLibraryTrailers(Config) ? libraries : new List<TrailerLibrary>();
             foreach (TrailerSelectionConfig selectionConfig in Config.TrailerSelectionRules)
             {
-               this.selectionRules.Add(selectionConfig); 
+               this.selectionRules.Add(selectionConfig);
             }
         }
 
-        private InternalItemsQuery BaseQuery(bool IsPlayed)
+        private InternalItemsQuery BaseQuery(bool IsPlayed, bool forLibrary)
         {
             InternalItemsQuery baseQuery = new InternalItemsQuery(this.User);
-            baseQuery.HasTrailer = true;
-            baseQuery.IncludeItemTypes = new BaseItemKind[] { BaseItemKind.Movie };
             baseQuery.ExcludeItemIds = this.ShownTrailers.ToArray();
 
-            if (this.Config.EnforceRatingLimitTrailers)
+            if (forLibrary)
+            {
+                baseQuery.Recursive = true;
+                baseQuery.IncludeItemTypes = new BaseItemKind[] { BaseItemKind.Movie, BaseItemKind.Video };
+            }
+            else
+            {
+                baseQuery.HasTrailer = true;
+                baseQuery.IncludeItemTypes = new BaseItemKind[] { BaseItemKind.Movie };
+            }
+
+            // Unrated library trailers are rating-filtered in memory (QueryLibraryTrailers) so the
+            // server query cannot drop items that have no rating.
+            if (this.Config.EnforceRatingLimitTrailers && !(forLibrary && this.Config.LibraryTrailersAllowUnrated))
             {
                 baseQuery.HasOfficialRating = true;
                 baseQuery.HasParentalRating = true;
@@ -288,9 +309,9 @@ namespace Jellyfin.Plugin.CinemaMode
             return baseQuery;
         }
 
-        private InternalItemsQuery BuildQuery(TrailerSelectionConfig config)
+        private InternalItemsQuery BuildQuery(TrailerSelectionConfig config, bool forLibrary)
         {
-            InternalItemsQuery configQuery = BaseQuery(!config.Unplayed);
+            InternalItemsQuery configQuery = BaseQuery(!config.Unplayed, forLibrary);
 
             if (config.Year && Feature.PremiereDate.HasValue)
             {
@@ -306,7 +327,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 configQuery.MinPremiereDate = new DateTime(year_start, 1, 1);
                 configQuery.MaxPremiereDate = new DateTime(year_end, 12, 31);
             }
-            
+
             if (config.Genre)
             {
                 configQuery.Genres = Feature.Genres;
@@ -316,7 +337,7 @@ namespace Jellyfin.Plugin.CinemaMode
             {
                 configQuery.MinDateCreated = DateTime.Today.AddMonths(-1);
             }
-            
+
             if (config.MoreLikeThis)
             {
                 configQuery.Genres = this.Feature.Genres;
@@ -327,10 +348,22 @@ namespace Jellyfin.Plugin.CinemaMode
             return configQuery;
         }
 
-        private void QueryTrailers(InternalItemsQuery query)
+        private void QueryLocalTrailers(Func<bool, InternalItemsQuery> queryFactory)
         {
-            IReadOnlyList<BaseItem> baseItems = Plugin.LibraryManager.GetItemList(query);
+            this.LocalCandidates = new List<Movie>();
+            if (!this.UseLocal)
+            {
+                return;
+            }
+
+            IReadOnlyList<BaseItem> baseItems = Plugin.LibraryManager.GetItemList(queryFactory(false));
             IEnumerable<Movie> moviesIter = baseItems.OfType<Movie>().Where(x => x.LocalTrailers.Count > 0);
+
+            // Videos inside a trailer library are trailers themselves, not features with trailers.
+            if (this.Libraries.Count > 0)
+            {
+                moviesIter = moviesIter.Where(x => !TrailerLibraryResolver.IsInTrailerLibrary(x, this.Libraries));
+            }
 
             // TODO: Remove when jf team fixes min rating query
             if (this.Config.EnforceRatingLimitTrailers)
@@ -338,32 +371,126 @@ namespace Jellyfin.Plugin.CinemaMode
                 moviesIter = moviesIter.Where(x => x.InheritedParentalRatingValue.HasValue);
             }
 
-            List<Movie> movies = moviesIter.ToList();
-            if (movies is not null)
+            this.LocalCandidates = moviesIter.ToList();
+        }
+
+        private void QueryLibraryTrailers(Func<bool, InternalItemsQuery> queryFactory)
+        {
+            this.LibraryCandidates = new List<BaseItem>();
+            if (this.Libraries.Count == 0)
             {
-                this.Trailers = movies;
-            } else {
-                this.Logger.LogInformation($"|jellyfin-cinema-mode| No trailer found: {this.Feature.Name} {this.Feature.InheritedParentalRatingValue})");
+                return;
+            }
+
+            Dictionary<Guid, BaseItem> found = new Dictionary<Guid, BaseItem>();
+            foreach (TrailerLibrary library in this.Libraries)
+            {
+                InternalItemsQuery query = queryFactory(true);
+                query.ParentId = library.Id;
+                foreach (BaseItem item in Plugin.LibraryManager.GetItemList(query))
+                {
+                    if (item is Video && !string.IsNullOrEmpty(item.Path))
+                    {
+                        found.TryAdd(item.Id, item);
+                    }
+                }
+            }
+
+            IEnumerable<BaseItem> items = found.Values.Where(x => !this.IsTrailerForFeature(x));
+
+            if (this.Config.EnforceRatingLimitTrailers)
+            {
+                int? maxRating = this.Feature.InheritedParentalRatingValue;
+                items = this.Config.LibraryTrailersAllowUnrated
+                    ? items.Where(x => !x.InheritedParentalRatingValue.HasValue || x.InheritedParentalRatingValue <= maxRating)
+                    : items.Where(x => x.InheritedParentalRatingValue.HasValue);
+            }
+
+            this.LibraryCandidates = items.ToList();
+        }
+
+        /// <summary>Skip a library trailer that advertises the feature we are about to play.</summary>
+        private bool IsTrailerForFeature(BaseItem trailer)
+        {
+            foreach (MetadataProvider provider in new[] { MetadataProvider.Tmdb, MetadataProvider.Imdb })
+            {
+                string? featureId = this.Feature.GetProviderId(provider);
+                if (!string.IsNullOrEmpty(featureId) && featureId == trailer.GetProviderId(provider))
+                {
+                    return true;
+                }
+            }
+
+            return string.Equals(trailer.Name, this.Feature.Name, StringComparison.OrdinalIgnoreCase)
+                && trailer.ProductionYear == this.Feature.ProductionYear;
+        }
+
+        private void QueryTrailers(Func<bool, InternalItemsQuery> queryFactory)
+        {
+            this.QueryLocalTrailers(queryFactory);
+            this.QueryLibraryTrailers(queryFactory);
+
+            if (this.CandidateCount == 0)
+            {
+                this.Logger.LogDebug($"|jellyfin-cinema-mode| No trailer found: {this.Feature.Name} {this.Feature.InheritedParentalRatingValue})");
             }
         }
 
         private void SelectionRuleQuery()
         {
-            this.Trailers = new List<Movie>() { };
-            while (this.selectionRules.Count != 0 && this.Trailers.Count == 0)
+            this.LocalCandidates = new List<Movie>();
+            this.LibraryCandidates = new List<BaseItem>();
+            while (this.selectionRules.Count != 0 && this.CandidateCount == 0)
             {
                 TrailerSelectionConfig trailerSelection = this.selectionRules.ElementAt(0);
-                this.selectionRules.RemoveAt(0); 
-                this.QueryTrailers(this.BuildQuery(trailerSelection));
+                this.selectionRules.RemoveAt(0);
+                this.QueryTrailers(forLibrary => this.BuildQuery(trailerSelection, forLibrary));
+            }
+        }
+
+        private bool ChooseLibrary()
+        {
+            if (this.LibraryCandidates.Count == 0)
+            {
+                return false;
+            }
+
+            if (this.LocalCandidates.Count == 0)
+            {
+                return true;
+            }
+
+            switch (this.Config.TrailerMixMode)
+            {
+                case TrailerMixModes.LibraryFirst:
+                    return true;
+                case TrailerMixModes.LocalFirst:
+                    return false;
+                case TrailerMixModes.Shuffle:
+                    return this.RNG.Next(this.CandidateCount) >= this.LocalCandidates.Count;
+                default:
+                    return this.NextFromLibrary;
             }
         }
 
         public IntroInfo PickAndPop()
         {
-            int idx = this.RNG.Next(this.Trailers.Count);
-            Movie movie = this.Trailers.ElementAt(idx);
+            bool fromLibrary = this.ChooseLibrary();
+            this.NextFromLibrary = !fromLibrary;
+
+            if (fromLibrary)
+            {
+                int libIdx = this.RNG.Next(this.LibraryCandidates.Count);
+                BaseItem trailer = this.LibraryCandidates.ElementAt(libIdx);
+                this.ShownTrailers.Add(trailer.Id);
+                this.LibraryCandidates.RemoveAt(libIdx);
+                return new IntroInfo { ItemId = trailer.Id, Path = trailer.Path };
+            }
+
+            int idx = this.RNG.Next(this.LocalCandidates.Count);
+            Movie movie = this.LocalCandidates.ElementAt(idx);
             this.ShownTrailers.Add(movie.Id);
-            this.Trailers.RemoveAt(idx);
+            this.LocalCandidates.RemoveAt(idx);
 
             int trailerID = this.RNG.Next(movie.LocalTrailers.Count);
             BaseItem item = movie.LocalTrailers.ElementAt(trailerID);
@@ -379,19 +506,25 @@ namespace Jellyfin.Plugin.CinemaMode
                 yield break;
             }
 
+            if (!this.UseLocal && this.Libraries.Count == 0)
+            {
+                this.Logger.LogInformation("|jellyfin-cinema-mode| Trailer source is set to library but no trailer library could be resolved");
+                yield break;
+            }
+
             // Selection Rules
             this.SelectionRuleQuery();
-            while (this.Trailers.Count != 0 && this.Returned < this.Config.NumberOfTrailers)
+            while (this.CandidateCount != 0 && this.Returned < this.Config.NumberOfTrailers)
             {
                 yield return this.PickAndPop();
                 this.Returned++;
 
-                if (this.Config.TrailerConsumeMode | this.Trailers.Count == 0)
+                if (this.Config.TrailerConsumeMode | this.CandidateCount == 0)
                 {
-                   SelectionRuleQuery(); 
+                   SelectionRuleQuery();
                 }
             }
-             
+
             // Break if we have reached count
             if (this.Returned == this.Config.NumberOfTrailers)
             {
@@ -399,8 +532,8 @@ namespace Jellyfin.Plugin.CinemaMode
             }
 
             // Unplayed
-            this.QueryTrailers(this.BaseQuery(false));
-            while (this.Trailers.Count != 0 && this.Returned < this.Config.NumberOfTrailers)
+            this.QueryTrailers(forLibrary => this.BaseQuery(false, forLibrary));
+            while (this.CandidateCount != 0 && this.Returned < this.Config.NumberOfTrailers)
             {
                 yield return this.PickAndPop();
                 this.Returned++;
@@ -413,8 +546,8 @@ namespace Jellyfin.Plugin.CinemaMode
             }
 
             // Played
-            this.QueryTrailers(this.BaseQuery(true));
-            while (this.Trailers.Count != 0 && this.Returned < this.Config.NumberOfTrailers)
+            this.QueryTrailers(forLibrary => this.BaseQuery(true, forLibrary));
+            while (this.CandidateCount != 0 && this.Returned < this.Config.NumberOfTrailers)
             {
                 yield return this.PickAndPop();
                 this.Returned++;
@@ -436,6 +569,25 @@ namespace Jellyfin.Plugin.CinemaMode
 
         public IEnumerable<IntroInfo> Get(BaseItem item, User user)
         {
+            PluginConfiguration config = Plugin.Instance.Configuration;
+            List<TrailerLibrary> trailerLibraries = new List<TrailerLibrary>();
+            if (config.NumberOfTrailers > 0 && TrailerLibraryResolver.UsesLibraryTrailers(config))
+            {
+                try
+                {
+                    trailerLibraries = TrailerLibraryResolver.Resolve(config, this.Logger);
+                }
+                catch (System.Exception e)
+                {
+                    this.Logger.LogError(e, "|jellyfin-cinema-mode| Exception encountered resolving trailer libraries");
+                }
+
+                // Playing a trailer straight from a trailer library should not get its own cinema intro.
+                if (TrailerLibraryResolver.IsInTrailerLibrary(item, trailerLibraries))
+                {
+                    yield break;
+                }
+            }
 
             if (Plugin.Instance.Configuration.TrailerPreRollsLibrary != "-")
             {
@@ -462,7 +614,7 @@ namespace Jellyfin.Plugin.CinemaMode
                 List<IntroInfo> trailers = new List<IntroInfo>();
                 try
                 {
-                    TrailerSelector trailerSelector = new TrailerSelector(item, user, Plugin.Instance.Configuration, this.Logger);
+                    TrailerSelector trailerSelector = new TrailerSelector(item, user, Plugin.Instance.Configuration, trailerLibraries, this.Logger);
                     trailers = trailerSelector.GetTrailers().ToList();
                 }
                 catch (System.Exception e)

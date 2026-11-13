@@ -90,11 +90,71 @@
                             <label class="inputLabel inputLabelUnfocused" for="number-trailers">Number of Trailers</label>
                             <input type="number" id="number-trailers" name="number-trailers" is="emby-input"/>
                             <div class="fieldDescription">
-                                The number of trailers to play. Setting at 0 will turn this section off. 
+                                The number of trailers to play. Setting at 0 will turn this section off.
                             </div>
                         </div>
-                        <div class="sectionTitleContainer flex align-items-center"> 
-                            <h4 class="sectionTitle">Selection Rules</h4> 
+                        <div class="selectContainer flex-shrink-zero">
+                            <label class="selectLabel" for="trailer-source-select">Trailer Source</label>
+                            <select is="emby-select" class="emby-select-withcolor emby-select" id="trailer-source-select" onchange="updateTrailerSourceVisibility()">
+                                <option value="LocalTrailers">Trailers in movie folders</option>
+                                <option value="Library">Trailer libraries</option>
+                                <option value="Both">Both</option>
+                            </select>
+                            <div class="selectArrowContainer">
+                                <div style="visibility:hidden;display:none;">0</div>
+                                <span class="selectArrow material-icons keyboard_arrow_down" aria-hidden="true"></span>
+                            </div>
+                            <div class="fieldDescription">
+                                <b>Trailers in movie folders</b> uses trailers stored alongside the movies in your libraries
+                                (e.g. a "Trailers" subfolder or a "-trailer" suffix). <b>Trailer libraries</b> treats every
+                                video in the selected libraries as a trailer, just like the pre-roll libraries. <b>Both</b>
+                                combines the two.
+                            </div>
+                        </div>
+                        <div id="trailer-library-options" style="display:none">
+                            <h4 class="sectionTitle">Trailer Libraries</h4>
+                            <div id="trailer-library-list" style="margin-bottom:1em">
+                            </div>
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label>
+                                    <input is="emby-checkbox" type="checkbox" id="use-trailers4jellyfin" name="use-trailers4jellyfin" />
+                                    <span>Include Trailers4Jellyfin downloads</span>
+                                </label>
+                                <div class="fieldDescription checkboxFieldDescription">
+                                    Also play trailers from the Trailers4Jellyfin plugin's download folder, so you don't need to
+                                    select that library by hand. The folder must be part of a Jellyfin library.
+                                    <div id="trailers4jellyfin-status" style="margin-top:0.5em"></div>
+                                </div>
+                            </div>
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label>
+                                    <input is="emby-checkbox" type="checkbox" id="library-trailers-allow-unrated" name="library-trailers-allow-unrated" />
+                                    <span>Allow Unrated Library Trailers</span>
+                                </label>
+                                <div class="fieldDescription checkboxFieldDescription">
+                                    Only applies when Enforce Rating Limit is on. Trailers for upcoming movies often have no rating yet,
+                                    so Enforce Rating Limit would skip them. Turn this on to allow unrated videos from the trailer libraries.
+                                </div>
+                            </div>
+                            <div class="selectContainer flex-shrink-zero" id="trailer-mix-container">
+                                <label class="selectLabel" for="trailer-mix-select">Mixing (Both)</label>
+                                <select is="emby-select" class="emby-select-withcolor emby-select" id="trailer-mix-select">
+                                    <option value="Alternate">Alternate (library, movie folder, library, ...)</option>
+                                    <option value="Shuffle">Shuffle (random from both)</option>
+                                    <option value="LibraryFirst">Trailer libraries first</option>
+                                    <option value="LocalFirst">Movie folder trailers first</option>
+                                </select>
+                                <div class="selectArrowContainer">
+                                    <div style="visibility:hidden;display:none;">0</div>
+                                    <span class="selectArrow material-icons keyboard_arrow_down" aria-hidden="true"></span>
+                                </div>
+                                <div class="fieldDescription">
+                                    How the two sources are combined when the source is set to Both. Selection rules apply to both sources.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sectionTitleContainer flex align-items-center">
+                            <h4 class="sectionTitle">Selection Rules</h4>
                             <button onclick="addTrailerRule('trailer-rules')" is="emby-button" type="button" class="fab emby-button" style="margin-left:1em" title="Add"> 
                                 <span class="material-icons add" aria-hidden="true"></span> 
                             </button> 
@@ -469,6 +529,83 @@
                 });
             };
 
+            var trailers4JellyfinId = "7635bf62-6b22-4c4c-9bc7-5d55f0c2bff0";
+
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function updateTrailerSourceVisibility() {
+                var source = document.getElementById('trailer-source-select').value;
+                document.getElementById('trailer-library-options').style.display = source == "LocalTrailers" ? "none" : "block";
+                document.getElementById('trailer-mix-container').style.display = source == "Both" ? "block" : "none";
+            }
+
+            function normalizePath(path) {
+                return (path || "").replace(/[\\\/]+$/, "").toLowerCase();
+            }
+
+            function initTrailerLibraryList(selectedIds) {
+                var list = document.getElementById('trailer-library-list');
+                list.innerHTML = "";
+                return mediaFolders.then((folderArray) => {
+                    for (const folder of folderArray) {
+                        if (folder.CollectionType == "movies" || folder.CollectionType == "homevideos" || !folder.CollectionType) {
+                            var label = document.createElement('label');
+                            label.style.marginRight = "20px";
+                            label.style.display = "inline-block";
+                            var checkbox = document.createElement('input');
+                            checkbox.type = "checkbox";
+                            checkbox.className = "trailer-library-checkbox";
+                            checkbox.value = folder.ItemId;
+                            checkbox.checked = selectedIds.includes(folder.ItemId);
+                            label.appendChild(checkbox);
+                            label.appendChild(document.createTextNode(" " + folder.Name));
+                            list.appendChild(label);
+                        }
+                    }
+                    if (!list.children.length) {
+                        list.innerHTML = '<div class="fieldDescription">No movie, home video or mixed libraries found.</div>';
+                    }
+                    return folderArray;
+                });
+            }
+
+            function getTrailerLibraries() {
+                return Array.from(document.getElementsByClassName('trailer-library-checkbox'))
+                    .filter((c) => c.checked)
+                    .map((c) => c.value);
+            }
+
+            function initTrailers4JellyfinStatus() {
+                var status = document.getElementById('trailers4jellyfin-status');
+                status.innerHTML = "";
+                ApiClient.getPluginConfiguration(trailers4JellyfinId).then(function (t4j) {
+                    mediaFolders.then((folderArray) => {
+                        var folder = t4j.DownloadFolder || "";
+                        var messages = [];
+                        if (!folder) {
+                            messages.push("Trailers4Jellyfin is installed but has no download folder set.");
+                        } else {
+                            var library = folderArray.find((f) => (f.Locations || []).some((l) => normalizePath(l) == normalizePath(folder)));
+                            if (library) {
+                                messages.push("Detected download folder <b>" + escapeHtml(folder) + "</b> (library \"" + escapeHtml(library.Name) + "\").");
+                            } else {
+                                messages.push("Detected download folder <b>" + escapeHtml(folder) + "</b>. It is not a library of its own; make sure it is inside a library so Jellyfin scans it.");
+                            }
+                        }
+                        if (t4j.EnableCinemaMode) {
+                            messages.push("&#9888; Trailers4Jellyfin's own Cinema Mode is turned on, so you may get extra trailers. Turn it off in the Trailers4Jellyfin settings and let this plugin handle playback.");
+                        }
+                        status.innerHTML = messages.join("<br/>");
+                    });
+                }, function () {
+                    status.innerHTML = "Trailers4Jellyfin isn't installed.";
+                });
+            }
+
             $('.cinemaModeConfigurationPage').on('pageshow', function () {
                 Dashboard.showLoadingMsg();
                 clearList('trailerPreRollLibrarySelect');
@@ -491,6 +628,14 @@
                     document.getElementById('ignore-out-of-season-trailer-pre-rolls').checked = config.TrailerPreRollsIgnoreOutOfSeason;
                     document.getElementById('ignore-out-of-season-feature-pre-rolls').checked = config.FeaturePreRollsIgnoreOutOfSeason;
                     document.getElementById('trailer-rules-consume-mode').checked = config.TrailerConsumeMode;
+
+                    document.getElementById('trailer-source-select').value = config.TrailerSource || "LocalTrailers";
+                    document.getElementById('trailer-mix-select').value = config.TrailerMixMode || "Alternate";
+                    document.getElementById('use-trailers4jellyfin').checked = config.UseTrailers4JellyfinFolder;
+                    document.getElementById('library-trailers-allow-unrated').checked = config.LibraryTrailersAllowUnrated;
+                    initTrailerLibraryList(config.TrailerLibraries || []);
+                    initTrailers4JellyfinStatus();
+                    updateTrailerSourceVisibility();
 
                     initSeasonalTagDefs(config.SeasonalTagDefinitions);
                     initTrailerRules(config.TrailerSelectionRules);
@@ -519,6 +664,11 @@
                     config.NumberOfTrailers = parseInt(NumberOfTrailers);
                     config.EnforceRatingLimitTrailers = document.getElementById('enforce-rating-limit-trailers').checked;
                     config.TrailerConsumeMode = document.getElementById('trailer-rules-consume-mode').checked;
+                    config.TrailerSource = document.getElementById('trailer-source-select').value;
+                    config.TrailerMixMode = document.getElementById('trailer-mix-select').value;
+                    config.TrailerLibraries = getTrailerLibraries();
+                    config.UseTrailers4JellyfinFolder = document.getElementById('use-trailers4jellyfin').checked;
+                    config.LibraryTrailersAllowUnrated = document.getElementById('library-trailers-allow-unrated').checked;
 
                     ApiClient.updatePluginConfiguration(pluginId, config).then(Dashboard.processPluginConfigurationUpdateResult);
                 });

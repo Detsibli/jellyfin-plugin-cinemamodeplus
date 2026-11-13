@@ -59,6 +59,35 @@ namespace Jellyfin.Plugin.CinemaMode.Configuration
         }
     }
 
+    /// <summary>Where trailers are pulled from. Stored as strings so the config page/XML stay readable.</summary>
+    public static class TrailerSources
+    {
+        /// <summary>Trailers stored alongside movies (movie folder / "Trailers" subfolder / -trailer suffix).</summary>
+        public const string LocalTrailers = "LocalTrailers";
+
+        /// <summary>Every video in the selected trailer libraries is a trailer.</summary>
+        public const string Library = "Library";
+
+        /// <summary>Both of the above.</summary>
+        public const string Both = "Both";
+    }
+
+    /// <summary>How trailers from the two sources are combined when <see cref="TrailerSources.Both"/> is used.</summary>
+    public static class TrailerMixModes
+    {
+        /// <summary>Alternate between library and local trailers, starting with the library.</summary>
+        public const string Alternate = "Alternate";
+
+        /// <summary>Pick randomly from the combined pool.</summary>
+        public const string Shuffle = "Shuffle";
+
+        /// <summary>Use library trailers first, fall back to local trailers.</summary>
+        public const string LibraryFirst = "LibraryFirst";
+
+        /// <summary>Use local trailers first, fall back to library trailers.</summary>
+        public const string LocalFirst = "LocalFirst";
+    }
+
     public class PluginConfiguration : BasePluginConfiguration
     {
         public string TrailerPreRollsLibrary { get; set; }
@@ -74,6 +103,11 @@ namespace Jellyfin.Plugin.CinemaMode.Configuration
         public bool EnforceRatingLimitTrailers { get; set; }
         public int NumberOfTrailers { get; set; }
         public bool TrailerConsumeMode { get; set; }
+        public string TrailerSource { get; set; }
+        public List<string> TrailerLibraries { get; set; }
+        public bool UseTrailers4JellyfinFolder { get; set; }
+        public string TrailerMixMode { get; set; }
+        public bool LibraryTrailersAllowUnrated { get; set; }
 
         public PluginConfiguration()
         {
@@ -90,6 +124,11 @@ namespace Jellyfin.Plugin.CinemaMode.Configuration
             NumberOfTrailers = 2;
             EnforceRatingLimitTrailers = true;
             TrailerConsumeMode = false;
+            TrailerSource = TrailerSources.LocalTrailers;
+            TrailerLibraries = new List<string>();
+            UseTrailers4JellyfinFolder = false;
+            TrailerMixMode = TrailerMixModes.Alternate;
+            LibraryTrailersAllowUnrated = false;
         }
     }
 }

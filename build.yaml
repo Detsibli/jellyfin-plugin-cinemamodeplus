@@ -1,6 +1,6 @@
 name: 'Cinema Mode'
 guid: '5fcefe1b-df1f-4596-ac57-f2f939c294c5'
-version: '0.6.0.0'
+version: '0.7.0.0'
 targetAbi: '10.11.0.0'
 framework: 'net9.0'
 owner: 'CherryFloors'
@@ -11,5 +11,7 @@ category: 'General'
 artifacts:
 - 'Jellyfin.Plugin.CinemaMode.dll'
 changelog:
-  - Target Jellyfin 10.11 ABI and fix broken API.
-  - Update "More Like This" trailer selection.
+  - Add Trailer Source option to play trailers from trailer libraries, movie folders, or both.
+  - Add mixing modes (alternate, shuffle, library first, movie folder first) for combined trailer sources.
+  - Add Trailers4Jellyfin integration to use its download folder as a trailer library.
+  - Add option to allow unrated library trailers when enforcing rating limits.
